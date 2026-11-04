@@ -15,9 +15,36 @@ jobs:
       - name: Checkout source
         uses: actions/checkout@v4
 
-      - name: Decode starter project archive
+      - name: Recover and extract starter project archive
         run: |
-          base64 --decode starter.zip.base64 > starter.zip
+          python3 - <<'PY'
+          import base64, io, string, zipfile
+          from pathlib import Path
+          raw = Path("starter.zip.base64").read_text().strip()
+          alphabet = string.ascii_letters + string.digits + "+/"
+          recovered = None
+          # The first upload lost exactly one Base64 character. Recover it by
+          # checking candidate ZIPs against their central directory and CRCs.
+          for pos in range(len(raw) + 1):
+              prefix, suffix = raw[:pos], raw[pos:]
+              for ch in alphabet:
+                  candidate = prefix + ch + suffix
+                  candidate += "=" * (-len(candidate) % 4)
+                  try:
+                      data = base64.b64decode(candidate, validate=True)
+                      with zipfile.ZipFile(io.BytesIO(data)) as zf:
+                          if zf.testzip() is None and "CricketPulseAndroid/app/src/main/java/com/cricketpulse/app/MainActivity.kt" in zf.namelist():
+                              recovered = data
+                              break
+                  except (ValueError, zipfile.BadZipFile):
+                      pass
+              if recovered is not None:
+                  break
+          if recovered is None:
+              raise SystemExit("Could not repair starter archive; upload a fresh ZIP.")
+          Path("starter.zip").write_bytes(recovered)
+          print("Starter ZIP repaired and verified.")
+          PY
           unzip -q starter.zip
 
       - name: Set up Java
