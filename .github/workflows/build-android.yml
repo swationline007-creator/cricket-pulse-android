@@ -88,6 +88,39 @@ jobs:
           yes | sdkmanager --licenses
           sdkmanager "platforms;android-36" "build-tools;36.0.0"
 
+      - name: Test CricketData current matches API
+        env:
+          CRICKETDATA_API_KEY: ${{ secrets.CRICKETDATA_API_KEY }}
+        run: |
+          python3 - <<'PY'
+          import json, os, sys, urllib.parse, urllib.request, urllib.error
+          key = os.environ.get("CRICKETDATA_API_KEY", "").strip()
+          if not key:
+              raise SystemExit("CRICKETDATA_API_KEY repository secret is missing or empty.")
+          query = urllib.parse.urlencode({"apikey": key, "offset": 0})
+          url = "https://api.cricapi.com/v1/currentMatches?" + query
+          req = urllib.request.Request(url, headers={"User-Agent": "CricketPulse-API-SmokeTest/1.0"})
+          try:
+              with urllib.request.urlopen(req, timeout=25) as response:
+                  payload = json.loads(response.read().decode("utf-8"))
+          except urllib.error.HTTPError as e:
+              raise SystemExit("CricketData API HTTP error: " + str(e.code))
+          except Exception as e:
+              raise SystemExit("CricketData API request failed: " + type(e).__name__)
+          if payload.get("status") != "success":
+              # Never print the request URL or key; show only provider's status/message.
+              raise SystemExit("CricketData API returned status=" + str(payload.get("status")) + "; message=" + str(payload.get("message", "no message")))
+          matches = payload.get("data") or []
+          info = payload.get("info") or {}
+          print("CricketData API connection: SUCCESS")
+          print("Current matches returned:", len(matches))
+          print("API hits today:", info.get("hitsToday", "not supplied"))
+          print("API daily limit:", info.get("hitsLimit", "not supplied"))
+          for match in matches[:5]:
+              teams = match.get("teams") or []
+              print("-", " vs ".join(str(t) for t in teams), "|", match.get("matchType", "type n/a"), "|", match.get("status", "status n/a"))
+          PY
+
       - name: Build debug APK
         working-directory: CricketPulseAndroid
         run: gradle --no-daemon :app:assembleDebug
