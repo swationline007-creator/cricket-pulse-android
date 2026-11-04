@@ -18,7 +18,7 @@ jobs:
       - name: Recover and extract starter project archive
         run: |
           python3 - <<'PY'
-          import base64, io, string, zipfile
+          import base64, io, string, zipfile, zlib
           from pathlib import Path
           raw = Path("starter.zip.base64").read_text().strip()
           alphabet = string.ascii_letters + string.digits + "+/"
@@ -36,7 +36,7 @@ jobs:
                           if zf.testzip() is None and "CricketPulseAndroid/app/src/main/java/com/cricketpulse/app/MainActivity.kt" in zf.namelist():
                               recovered = data
                               break
-                  except (ValueError, zipfile.BadZipFile):
+                  except (ValueError, zipfile.BadZipFile, zlib.error):
                       pass
               if recovered is not None:
                   break
