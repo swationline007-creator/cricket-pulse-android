@@ -46,6 +46,25 @@ jobs:
           print("Starter ZIP repaired and verified.")
           PY
           unzip -q starter.zip
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path("CricketPulseAndroid/app/build.gradle.kts")
+          s = p.read_text()
+          marker = "    buildFeatures { compose = true }"
+          fix = """    compileOptions {
+                  sourceCompatibility = JavaVersion.VERSION_17
+                  targetCompatibility = JavaVersion.VERSION_17
+              }
+              kotlinOptions {
+                  jvmTarget = "17"
+              }
+
+          """
+          if "sourceCompatibility = JavaVersion.VERSION_17" not in s:
+              s = s.replace(marker, fix + marker)
+              p.write_text(s)
+          print("Java and Kotlin JVM targets aligned to 17.")
+          PY
 
       - name: Set up Java
         uses: actions/setup-java@v4
