@@ -64,6 +64,12 @@ jobs:
           print("Java and Kotlin JVM targets aligned to 17.")
           PY
 
+      - name: Inspect Android app source
+        run: |
+          echo "===== MAIN ACTIVITY ====="
+          sed -n '1,260p' CricketPulseAndroid/app/src/main/java/com/cricketpulse/app/MainActivity.kt
+          echo "===== APP GRADLE ====="
+          sed -n '1,220p' CricketPulseAndroid/app/build.gradle.kts
       - name: Set up Java
         uses: actions/setup-java@v4
         with:
