@@ -23,8 +23,6 @@ jobs:
           raw = Path("starter.zip.base64").read_text().strip()
           alphabet = string.ascii_letters + string.digits + "+/"
           recovered = None
-          # The first upload lost exactly one Base64 character. Recover it by
-          # checking candidate ZIPs against their central directory and CRCs.
           for pos in range(len(raw) + 1):
               prefix, suffix = raw[:pos], raw[pos:]
               for ch in alphabet:
@@ -93,7 +91,7 @@ jobs:
           CRICKETDATA_API_KEY: ${{ secrets.CRICKETDATA_API_KEY }}
         run: |
           python3 - <<'PY'
-          import json, os, sys, urllib.parse, urllib.request, urllib.error
+          import json, os, urllib.parse, urllib.request, urllib.error
           key = os.environ.get("CRICKETDATA_API_KEY", "").strip()
           if not key:
               raise SystemExit("CRICKETDATA_API_KEY repository secret is missing or empty.")
@@ -126,7 +124,7 @@ jobs:
           python3 - <<'PY'
           import json, urllib.request, urllib.error
           url = "https://rcydwbzretytoubkwdav.supabase.co/functions/v1/cricket-current-matches"
-          anon = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJjeWR3YnpyZXR5b3Via3dhdmQiLCJyb2xlIjoiYW5vbiIsImlhdCI6MTc5MzgxNzEwMiwiZXhwIjoyMTA5MzkzMTAyfQ.sJH1s3A4n0_mGJnRSfQrgfCrj7i4jJsy_dME9x47SGA"
+          anon = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJjeWR3YnpyZXR5dG91Ymt3ZGF2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTM4MTcxMDIsImV4cCI6MjEwOTM5MzEwMn0.sJH1s3A4n0_mGJnRSfQrgfCrj7i4jJsy_dME9x47SGA"
           req = urllib.request.Request(url, headers={"apikey": anon, "Authorization": "Bearer " + anon})
           try:
               with urllib.request.urlopen(req, timeout=25) as response:
