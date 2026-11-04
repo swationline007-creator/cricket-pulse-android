@@ -121,6 +121,28 @@ jobs:
               print("-", " vs ".join(str(t) for t in teams), "|", match.get("matchType", "type n/a"), "|", match.get("status", "status n/a"))
           PY
 
+      - name: Verify Supabase cricket data proxy
+        run: |
+          python3 - <<'PY'
+          import json, urllib.request, urllib.error
+          url = "https://rcydwbzretytoubkwdav.supabase.co/functions/v1/cricket-current-matches"
+          anon = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJjeWR3YnpyZXR5dG91Ymt3ZGF2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTM4MTcxMDIsImV4cCI6MjEwOTM5MzEwMn0.sJH1s3A4n0_mGJnRSfQrgfCrj7i4jJsy_dME9x47SGA"
+          req = urllib.request.Request(url, headers={"apikey": anon, "Authorization": "Bearer " + anon})
+          try:
+              with urllib.request.urlopen(req, timeout=25) as response:
+                  data = json.loads(response.read().decode("utf-8"))
+          except urllib.error.HTTPError as e:
+              body = e.read().decode("utf-8", "replace")
+              raise SystemExit("Supabase proxy HTTP " + str(e.code) + ": " + body[:300])
+          if data.get("status") != "success":
+              raise SystemExit("Supabase proxy returned no successful cricket data: " + str(data.get("error", "unknown response")))
+          matches = data.get("data") or []
+          print("Supabase proxy: SUCCESS")
+          print("Current match records:", len(matches))
+          for match in matches[:5]:
+              print("-", " vs ".join(match.get("teams") or []), "|", match.get("status", "status n/a"))
+          PY
+
       - name: Build debug APK
         working-directory: CricketPulseAndroid
         run: gradle --no-daemon :app:assembleDebug
