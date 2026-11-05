@@ -126,3 +126,22 @@ fun MatchTile(match: MatchCard) {
     print("Card text layout updated.")
 else:
     raise SystemExit("Could not locate MatchTile boundaries")
+
+# Apply requested product branding in the Android UI and launcher label.
+manifest = Path("CricketPulseAndroid/app/src/main/AndroidManifest.xml")
+manifest_text = manifest.read_text()
+if 'android:label="SB CricketNow"' not in manifest_text:
+    if 'android:label="@string/app_name"' in manifest_text:
+        manifest_text = manifest_text.replace('android:label="@string/app_name"', 'android:label="SB CricketNow"')
+    elif "<application" in manifest_text:
+        manifest_text = manifest_text.replace("<application", '<application android:label="SB CricketNow"', 1)
+    manifest.write_text(manifest_text)
+for kotlin_file in Path("CricketPulseAndroid/app/src/main").rglob("*.kt"):
+    text = kotlin_file.read_text()
+    text = text.replace('"CRICKET PULSE"', '"SB CRICKETNOW"')
+    text = text.replace('"Cricket Pulse"', '"SB CricketNow"')
+    kotlin_file.write_text(text)
+gradle_file = Path("CricketPulseAndroid/app/build.gradle.kts")
+gradle_text = gradle_file.read_text().replace('versionCode = 1', 'versionCode = 2').replace('versionName = "0.1.0"', 'versionName = "0.2.0"')
+gradle_file.write_text(gradle_text)
+print("SB CricketNow app name and version applied.")
