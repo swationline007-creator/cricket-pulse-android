@@ -64,6 +64,9 @@ jobs:
           print("Java and Kotlin JVM targets aligned to 17.")
           PY
 
+      - name: Integrate secure live cricket API into Android UI
+        run: python3 scripts/connect-live-api.py
+
       - name: Inspect Android app source
         run: |
           echo "===== MAIN ACTIVITY ====="
