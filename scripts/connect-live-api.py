@@ -89,3 +89,40 @@ if "android.permission.INTERNET" not in m:
     m=m[:at+1]+'\n    <uses-permission android:name="android.permission.INTERNET" />'+m[at+1:]
     manifest.write_text(m)
 print("Patched Compose screens to load real match records from secure Vercel API.")
+
+# Keep status and competition on separate lines to prevent label overlap.
+src = p.read_text()
+a = src.find("@Composable fun MatchTile(")
+if a < 0:
+    a = src.find("@Composable\nfun MatchTile(")
+b = src.find("\nprivate suspend fun fetchCricketMatches", a)
+if a >= 0 and b > a:
+    tile = """@Composable
+fun MatchTile(match: MatchCard) {
+    Surface(color = Panel, shape = RoundedCornerShape(18.dp), modifier = Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(16.dp)) {
+            Text(match.status, color = Accent, fontSize = 11.sp, fontWeight = FontWeight.Bold, maxLines = 2)
+            Spacer(Modifier.height(5.dp))
+            Text(match.competition, color = Muted, fontSize = 11.sp, maxLines = 2)
+            Spacer(Modifier.height(16.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(match.teamA, color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.ExtraBold, modifier = Modifier.weight(1f))
+                Text(match.scoreA, color = Color.White, fontSize = 14.sp)
+            }
+            Spacer(Modifier.height(10.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(match.teamB, color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.ExtraBold, modifier = Modifier.weight(1f))
+                Text(match.scoreB, color = Color.White, fontSize = 14.sp)
+            }
+            Spacer(Modifier.height(14.dp))
+            HorizontalDivider(color = Color(0xFF29415B))
+            Spacer(Modifier.height(10.dp))
+            Text(match.note, color = Muted, fontSize = 11.sp)
+        }
+    }
+}
+"""
+    p.write_text(src[:a] + tile + src[b:])
+    print("Card text layout updated.")
+else:
+    raise SystemExit("Could not locate MatchTile boundaries")
