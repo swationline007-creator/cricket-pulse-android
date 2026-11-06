@@ -235,11 +235,17 @@ src = src.replace(
     'fun MatchTile(match: MatchCard) {',
     'fun MatchTile(match: MatchCard, onClick: () -> Unit) {'
 )
-src = src.replace(
-    'Surface(color = Panel, shape = RoundedCornerShape(18.dp), modifier = Modifier.fillMaxWidth()) {',
-    'Surface(color = Panel, shape = RoundedCornerShape(18.dp), modifier = Modifier.fillMaxWidth().clickable(onClick = onClick)) {',
+tile_start = src.index("fun MatchTile(match: MatchCard, onClick: () -> Unit) {")
+tile_end = src.find("\\nprivate suspend fun fetchCricketMatches", tile_start)
+if tile_start < 0 or tile_end < 0:
+    raise SystemExit("Could not locate MatchTile for clickable update")
+tile_src = src[tile_start:tile_end]
+tile_src = tile_src.replace(
+    "modifier = Modifier.fillMaxWidth()) {",
+    "modifier = Modifier.fillMaxWidth().clickable(onClick = onClick)) {",
     1
 )
+src = src[:tile_start] + tile_src + src[tile_end:]
 
 # Append the detail screen and provider-backed scorecard fetch once.
 if "private suspend fun fetchMatchScorecard" not in src:
