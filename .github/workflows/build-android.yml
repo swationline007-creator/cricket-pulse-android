@@ -150,6 +150,12 @@ jobs:
               print("-", " vs ".join(match.get("teams") or []), "|", match.get("status", "status n/a"))
           PY
 
+      - name: Restore stable Android debug signing key
+        uses: actions/cache@v4
+        with:
+          path: ~/.android/debug.keystore
+          key: sb-cricketnow-debug-signing-v1
+
       - name: Build debug APK
         working-directory: CricketPulseAndroid
         run: gradle --no-daemon :app:assembleDebug
