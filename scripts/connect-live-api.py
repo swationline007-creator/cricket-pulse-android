@@ -297,6 +297,18 @@ fun MatchDetailsScreen(
 }
 
 
+private fun scorecardPlayerName(player: JSONObject, roleKey: String, fallback: String): String {
+    val roleValue = player.opt(roleKey)
+    val fromNestedObject = (roleValue as? JSONObject)?.optString("name", "").orEmpty()
+    val fromNestedJsonString = if (roleValue is String && roleValue.trim().startsWith("{")) {
+        runCatching { JSONObject(roleValue).optString("name", "") }.getOrDefault("")
+    } else ""
+    val directName = player.optString("name", "")
+    return fromNestedObject.ifBlank { fromNestedJsonString.ifBlank { directName.ifBlank {
+        if (roleValue is String && roleValue.isNotBlank() && !roleValue.trim().startsWith("{")) roleValue else fallback
+    } } }
+}
+
 @Composable
 fun ScorecardSections(raw: String) {
     val root = remember(raw) { runCatching { JSONObject(raw) }.getOrNull() }
