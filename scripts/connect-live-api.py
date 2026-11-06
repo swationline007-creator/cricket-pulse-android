@@ -130,12 +130,16 @@ else:
 # Apply requested product branding in the Android UI and launcher label.
 manifest = Path("CricketPulseAndroid/app/src/main/AndroidManifest.xml")
 manifest_text = manifest.read_text()
-if 'android:label="SB CricketNow"' not in manifest_text:
-    if 'android:label="@string/app_name"' in manifest_text:
-        manifest_text = manifest_text.replace('android:label="@string/app_name"', 'android:label="SB CricketNow"')
-    elif "<application" in manifest_text:
-        manifest_text = manifest_text.replace("<application", '<application android:label="SB CricketNow"', 1)
-    manifest.write_text(manifest_text)
+import re
+manifest_text, label_count = re.subn(
+    r'android:label\\s*=\\s*["\\'][^"\\']*["\\']',
+    'android:label="SB CricketNow"',
+    manifest_text,
+    count=1,
+)
+if label_count == 0 and "<application" in manifest_text:
+    manifest_text = manifest_text.replace("<application", '<application android:label="SB CricketNow"', 1)
+manifest.write_text(manifest_text)
 for kotlin_file in Path("CricketPulseAndroid/app/src/main").rglob("*.kt"):
     text = kotlin_file.read_text()
     text = text.replace('"CRICKET PULSE"', '"SB CRICKETNOW"')
