@@ -283,7 +283,7 @@ fun MatchDetailsScreen(
         when {
             loading -> CircularProgressIndicator(color = Accent)
             error != null -> Text(error, color = Muted)
-            scorecard != null -> Text(scorecard, color = Color.White, fontSize = 12.sp)
+            scorecard != null -> ScorecardSections(scorecard)
             else -> Text("इस मैच का scorecard अभी उपलब्ध नहीं है।", color = Muted)
         }
         Spacer(Modifier.height(18.dp))
@@ -293,6 +293,93 @@ fun MatchDetailsScreen(
             "इस provider/API response में verified ball-by-ball commentary feed उपलब्ध नहीं है। इसलिए यहाँ कोई अनुमानित या नकली commentary नहीं दिखाई जाएगी।",
             color = Muted, fontSize = 13.sp
         )
+    }
+}
+
+
+@Composable
+fun ScorecardSections(raw: String) {
+    val root = remember(raw) { runCatching { JSONObject(raw) }.getOrNull() }
+    val innings = root?.optJSONArray("scorecard")
+        ?: root?.optJSONArray("innings")
+        ?: root?.optJSONArray("data")
+    if (innings == null || innings.length() == 0) {
+        Text("Provider ने structured innings scorecard नहीं दिया। Raw response को scorecard की तरह दिखाने के बजाय इसे unavailable रखा गया है।", color = Muted, fontSize = 13.sp)
+        return
+    }
+    Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+        for (i in 0 until innings.length()) {
+            val inning = innings.optJSONObject(i) ?: continue
+            val inningName = inning.optString("inning", inning.optString("name", "Innings ${i + 1}"))
+            Text(inningName, color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+            val batting = inning.optJSONArray("batting") ?: inning.optJSONArray("batsmen")
+            if (batting != null) {
+                Text("BATTING", color = Accent, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                    Text("Batter", color = Muted, fontSize = 11.sp, modifier = Modifier.weight(1f))
+                    Text("R", color = Muted, fontSize = 11.sp, modifier = Modifier.width(28.dp))
+                    Text("B", color = Muted, fontSize = 11.sp, modifier = Modifier.width(28.dp))
+                    Text("4s", color = Muted, fontSize = 11.sp, modifier = Modifier.width(28.dp))
+                    Text("6s", color = Muted, fontSize = 11.sp, modifier = Modifier.width(28.dp))
+                    Text("SR", color = Muted, fontSize = 11.sp, modifier = Modifier.width(42.dp))
+                }
+                for (j in 0 until batting.length()) {
+                    val player = batting.optJSONObject(j) ?: continue
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        Column(Modifier.weight(1f)) {
+                            Text(player.optString("batsman", player.optString("name", "Batter")), color = Color.White, fontSize = 12.sp)
+                            val dismissal = player.optString("dismissal", player.optString("dismissal-text", ""))
+                            if (dismissal.isNotBlank()) Text(dismissal, color = Muted, fontSize = 10.sp)
+                        }
+                        Text(player.optString("r", player.optString("runs", "—")), color = Color.White, fontSize = 12.sp, modifier = Modifier.width(28.dp))
+                        Text(player.optString("b", player.optString("balls", "—")), color = Color.White, fontSize = 12.sp, modifier = Modifier.width(28.dp))
+                        Text(player.optString("4s", "0"), color = Color.White, fontSize = 12.sp, modifier = Modifier.width(28.dp))
+                        Text(player.optString("6s", "0"), color = Color.White, fontSize = 12.sp, modifier = Modifier.width(28.dp))
+                        Text(player.optString("sr", player.optString("strikeRate", "—")), color = Color.White, fontSize = 12.sp, modifier = Modifier.width(42.dp))
+                    }
+                }
+            }
+            val bowling = inning.optJSONArray("bowling") ?: inning.optJSONArray("bowlers")
+            if (bowling != null) {
+                Spacer(Modifier.height(6.dp))
+                Text("BOWLING", color = Accent, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                    Text("Bowler", color = Muted, fontSize = 11.sp, modifier = Modifier.weight(1f))
+                    listOf("O", "M", "R", "W", "Econ").forEach { Text(it, color = Muted, fontSize = 11.sp, modifier = Modifier.width(34.dp)) }
+                }
+                for (j in 0 until bowling.length()) {
+                    val player = bowling.optJSONObject(j) ?: continue
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        Text(player.optString("bowler", player.optString("name", "Bowler")), color = Color.White, fontSize = 12.sp, modifier = Modifier.weight(1f))
+                        listOf("o", "m", "r", "w", "eco").forEach { key ->
+                            Text(player.optString(key, "—"), color = Color.White, fontSize = 12.sp, modifier = Modifier.width(34.dp))
+                        }
+                    }
+                }
+            }
+            val extras = inning.optJSONObject("extras")
+            if (extras != null) {
+                Spacer(Modifier.height(6.dp))
+                Text("EXTRAS", color = Accent, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                Text(extras.toString(), color = Color.White, fontSize = 12.sp)
+            }
+            val fall = inning.optJSONArray("fallOfWickets") ?: inning.optJSONArray("fall_of_wickets")
+            if (fall != null) {
+                Spacer(Modifier.height(6.dp))
+                Text("FALL OF WICKETS", color = Accent, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                val entries = (0 until fall.length()).mapNotNull { idx ->
+                    val item = fall.opt(idx)
+                    when (item) {
+                        is JSONObject -> item.optString("score", item.optString("wicket", item.toString()))
+                        else -> item?.toString()
+                    }
+                }
+                Text(entries.joinToString("  •  "), color = Color.White, fontSize = 12.sp)
+            }
+            val total = inning.optString("total", inning.optString("score", ""))
+            if (total.isNotBlank()) Text("TOTAL  $total", color = Color.White, fontWeight = FontWeight.Bold)
+            if (i < innings.length() - 1) HorizontalDivider(color = Color(0xFF29415B))
+        }
     }
 }
 
