@@ -327,7 +327,7 @@ fun ScorecardSections(raw: String) {
                     val player = batting.optJSONObject(j) ?: continue
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                         Column(Modifier.weight(1f)) {
-                            Text(player.optString("batsman", player.optString("name", "Batter")), color = Color.White, fontSize = 12.sp)
+                            Text(scorecardPlayerName(player, "batsman", "Batter"), color = Color.White, fontSize = 12.sp)
                             val dismissal = player.optString("dismissal", player.optString("dismissal-text", ""))
                             if (dismissal.isNotBlank()) Text(dismissal, color = Muted, fontSize = 10.sp)
                         }
@@ -350,7 +350,7 @@ fun ScorecardSections(raw: String) {
                 for (j in 0 until bowling.length()) {
                     val player = bowling.optJSONObject(j) ?: continue
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        Text(player.optString("bowler", player.optString("name", "Bowler")), color = Color.White, fontSize = 12.sp, modifier = Modifier.weight(1f))
+                        Text(scorecardPlayerName(player, "bowler", "Bowler"), color = Color.White, fontSize = 12.sp, modifier = Modifier.weight(1f))
                         listOf("o", "m", "r", "w", "eco").forEach { key ->
                             Text(player.optString(key, "—"), color = Color.White, fontSize = 12.sp, modifier = Modifier.width(34.dp))
                         }
