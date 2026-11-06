@@ -149,3 +149,162 @@ gradle_file = Path("CricketPulseAndroid/app/build.gradle.kts")
 gradle_text = gradle_file.read_text().replace('versionCode = 1', 'versionCode = 2').replace('versionName = "0.1.0"', 'versionName = "0.2.0"')
 gradle_file.write_text(gradle_text)
 print("SB CricketNow app name and version applied.")
+
+
+# SB CricketNow Match Centre, full scorecard and honest commentary availability.
+# This post-processing patch is intentionally idempotent: the cloud build reconstructs
+# the starter project on every run before applying these edits.
+src = p.read_text()
+
+# Preserve the provider's match UUID for the scorecard endpoint.
+if "val id: String, val status: String" not in src:
+    src = src.replace(
+        "data class MatchCard(\n    val status: String, val competition: String,",
+        "data class MatchCard(\n    val id: String, val status: String, val competition: String,"
+    )
+src = src.replace(
+    "add(MatchCard(status, title, a, score(0), b, score(1),",
+    "add(MatchCard(item.optString(\"id\", \"\"), status, title, a, score(0), b, score(1),"
+)
+
+# Add selected match state and load scorecard only after a user taps a match.
+src = src.replace(
+    '    var selectedTab by remember { mutableStateOf("Home") }',
+    '''    var selectedTab by remember { mutableStateOf("Home") }
+    var selectedMatch by remember { mutableStateOf<MatchCard?>(null) }
+    var scorecardText by remember { mutableStateOf<String?>(null) }
+    var scorecardLoading by remember { mutableStateOf(false) }
+    var scorecardError by remember { mutableStateOf<String?>(null) }
+    LaunchedEffect(selectedMatch?.id) {
+        val chosen = selectedMatch
+        scorecardText = null
+        scorecardError = null
+        if (chosen != null) {
+            if (chosen.id.isBlank()) {
+                scorecardError = "इस मैच का provider match ID उपलब्ध नहीं है।"
+            } else {
+                scorecardLoading = true
+                try { scorecardText = fetchMatchScorecard(chosen.id) }
+                catch (e: Exception) { scorecardError = e.message ?: "Scorecard उपलब्ध नहीं है।" }
+                scorecardLoading = false
+            }
+        }
+    }'''
+)
+
+# Add a Results tab and keep Fixtures and Results filters independent.
+src = src.replace('listOf("Home", "Live", "Fixtures", "News")',
+                  'listOf("Home", "Live", "Fixtures", "Results", "News")')
+src = src.replace(
+    'Icons.Default.CalendarMonth, Icons.Default.Article)',
+    'Icons.Default.CalendarMonth, Icons.Default.EmojiEvents, Icons.Default.Article)'
+)
+src = src.replace(
+    '''            when (selectedTab) {
+                "Home" -> HomeScreen(matches, loading, error, { reload++ }, Modifier.padding(padding))
+                "Live" -> MatchListScreen("Live Matches", matches.filter { it.status.startsWith("LIVE") }, loading, error, { reload++ }, Modifier.padding(padding))
+                "Fixtures" -> MatchListScreen("Fixtures & Results", matches.filter { !it.status.startsWith("LIVE") }, loading, error, { reload++ }, Modifier.padding(padding))
+                else -> NewsScreen(Modifier.padding(padding))
+            }''',
+    '''            if (selectedMatch != null) {
+                MatchDetailsScreen(selectedMatch!!, scorecardText, scorecardLoading, scorecardError,
+                    onBack = { selectedMatch = null }, modifier = Modifier.padding(padding))
+            } else when (selectedTab) {
+                "Home" -> HomeScreen(matches, loading, error, { reload++ }, { selectedMatch = it }, Modifier.padding(padding))
+                "Live" -> MatchListScreen("Live Matches", matches.filter { it.status.startsWith("LIVE") }, loading, error, { reload++ }, { selectedMatch = it }, Modifier.padding(padding))
+                "Fixtures" -> MatchListScreen("Upcoming Fixtures", matches.filter { it.status.startsWith("UPCOMING") }, loading, error, { reload++ }, { selectedMatch = it }, Modifier.padding(padding))
+                "Results" -> MatchListScreen("Match Results", matches.filter { it.status.startsWith("RESULT") }, loading, error, { reload++ }, { selectedMatch = it }, Modifier.padding(padding))
+                else -> NewsScreen(Modifier.padding(padding))
+            }'''
+)
+
+# Pass a click callback from each match list to the match card.
+src = src.replace(
+    'fun HomeScreen(matches: List<MatchCard>, loading: Boolean, error: String?, refresh: () -> Unit, modifier: Modifier = Modifier)',
+    'fun HomeScreen(matches: List<MatchCard>, loading: Boolean, error: String?, refresh: () -> Unit, onMatchClick: (MatchCard) -> Unit, modifier: Modifier = Modifier)'
+)
+src = src.replace(
+    'fun MatchListScreen(title: String, matches: List<MatchCard>, loading: Boolean, error: String?, refresh: () -> Unit, modifier: Modifier = Modifier)',
+    'fun MatchListScreen(title: String, matches: List<MatchCard>, loading: Boolean, error: String?, refresh: () -> Unit, onMatchClick: (MatchCard) -> Unit, modifier: Modifier = Modifier)'
+)
+src = src.replace('items(matches) { MatchTile(it) }',
+                  'items(matches) { match -> MatchTile(match) { onMatchClick(match) } }')
+
+# Make each match card visibly tappable.
+src = src.replace(
+    'fun MatchTile(match: MatchCard) {',
+    'fun MatchTile(match: MatchCard, onClick: () -> Unit) {'
+)
+src = src.replace(
+    'Surface(color = Panel, shape = RoundedCornerShape(18.dp), modifier = Modifier.fillMaxWidth()) {',
+    'Surface(color = Panel, shape = RoundedCornerShape(18.dp), modifier = Modifier.fillMaxWidth().clickable(onClick = onClick)) {',
+    1
+)
+
+# Append the detail screen and provider-backed scorecard fetch once.
+if "private suspend fun fetchMatchScorecard" not in src:
+    src += '''
+
+@Composable
+fun MatchDetailsScreen(
+    match: MatchCard,
+    scorecard: String?,
+    loading: Boolean,
+    error: String?,
+    onBack: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Column(modifier.fillMaxSize().padding(18.dp)) {
+        TextButton(onClick = onBack) { Text("‹ Back to matches", color = Accent) }
+        Text("MATCH CENTRE", color = Accent, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+        Spacer(Modifier.height(6.dp))
+        Text(match.competition, color = Color.White, fontSize = 21.sp, fontWeight = FontWeight.Bold)
+        Spacer(Modifier.height(12.dp))
+        Surface(color = Panel, shape = RoundedCornerShape(16.dp)) {
+            Column(Modifier.fillMaxWidth().padding(16.dp)) {
+                Text(match.status, color = Accent, fontWeight = FontWeight.Bold)
+                Spacer(Modifier.height(12.dp))
+                Text(match.teamA + "    " + match.scoreA, color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.Bold)
+                Spacer(Modifier.height(8.dp))
+                Text(match.teamB + "    " + match.scoreB, color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.Bold)
+                Spacer(Modifier.height(8.dp))
+                Text(match.note, color = Muted, fontSize = 12.sp)
+            }
+        }
+        Spacer(Modifier.height(18.dp))
+        Text("FULL SCORECARD", color = Accent, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+        Spacer(Modifier.height(8.dp))
+        when {
+            loading -> CircularProgressIndicator(color = Accent)
+            error != null -> Text(error, color = Muted)
+            scorecard != null -> Text(scorecard, color = Color.White, fontSize = 12.sp)
+            else -> Text("इस मैच का scorecard अभी उपलब्ध नहीं है।", color = Muted)
+        }
+        Spacer(Modifier.height(18.dp))
+        Text("BALL-BY-BALL COMMENTARY", color = Accent, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+        Spacer(Modifier.height(8.dp))
+        Text(
+            "इस provider/API response में verified ball-by-ball commentary feed उपलब्ध नहीं है। इसलिए यहाँ कोई अनुमानित या नकली commentary नहीं दिखाई जाएगी।",
+            color = Muted, fontSize = 13.sp
+        )
+    }
+}
+
+private suspend fun fetchMatchScorecard(matchId: String): String = withContext(Dispatchers.IO) {
+    val url = URL("https://cricket-pulse-android.vercel.app/api/scorecard?id=" + java.net.URLEncoder.encode(matchId, "UTF-8"))
+    val connection = url.openConnection() as HttpURLConnection
+    connection.connectTimeout = 15000
+    connection.readTimeout = 15000
+    try {
+        val code = connection.responseCode
+        val body = (if (code in 200..299) connection.inputStream else connection.errorStream).bufferedReader().use { it.readText() }
+        check(code in 200..299) { "Scorecard server HTTP $code" }
+        val root = JSONObject(body)
+        check(root.optBoolean("ok")) { root.optString("error", "Scorecard unavailable") }
+        val data = root.optJSONObject("data") ?: error("Provider returned no scorecard data")
+        data.toString(2)
+    } finally { connection.disconnect() }
+}
+'''
+p.write_text(src)
+print("Applied SB CricketNow Match Centre navigation, provider scorecard, separate Results filter, and honest commentary fallback.")
