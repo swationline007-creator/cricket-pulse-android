@@ -247,6 +247,11 @@ tile_src = tile_src.replace(
 )
 src = src[:tile_start] + tile_src + src[tile_end:]
 
+# Clear Match Centre selection when a bottom navigation destination is chosen.
+src = src.replace("onClick = { selectedTab = tab }", "onClick = { selectedMatch = null; selectedTab = tab }")
+src = src.replace("onClick = { selectedTab = item }", "onClick = { selectedMatch = null; selectedTab = item }")
+src = src.replace("onClick = { selectedTab = destination }", "onClick = { selectedMatch = null; selectedTab = destination }")
+
 # Append the detail screen and provider-backed scorecard fetch once.
 if "private suspend fun fetchMatchScorecard" not in src:
     src += '''
@@ -260,7 +265,7 @@ fun MatchDetailsScreen(
     onBack: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Column(modifier.fillMaxSize().padding(18.dp)) {
+    Column(modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(18.dp)) {
         TextButton(onClick = onBack) { Text("‹ Back to matches", color = Accent) }
         Text("MATCH CENTRE", color = Accent, fontSize = 12.sp, fontWeight = FontWeight.Bold)
         Spacer(Modifier.height(6.dp))
