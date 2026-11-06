@@ -236,7 +236,7 @@ src = src.replace(
     'fun MatchTile(match: MatchCard, onClick: () -> Unit) {'
 )
 tile_start = src.index("fun MatchTile(match: MatchCard, onClick: () -> Unit) {")
-tile_end = src.find("\\nprivate suspend fun fetchCricketMatches", tile_start)
+tile_end = src.find("\nprivate suspend fun fetchCricketMatches", tile_start)
 if tile_start < 0 or tile_end < 0:
     raise SystemExit("Could not locate MatchTile for clickable update")
 tile_src = src[tile_start:tile_end]
