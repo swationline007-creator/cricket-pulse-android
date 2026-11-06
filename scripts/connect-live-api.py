@@ -132,7 +132,7 @@ manifest = Path("CricketPulseAndroid/app/src/main/AndroidManifest.xml")
 manifest_text = manifest.read_text()
 import re
 manifest_text, label_count = re.subn(
-    r'android:label\\s*=\\s*["\\'][^"\\']*["\\']',
+    r"""android:label\s*=\s*["'][^"']*["']""",
     'android:label="SB CricketNow"',
     manifest_text,
     count=1,
